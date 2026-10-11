@@ -62,6 +62,7 @@ import {
   zDynamicGroupInputSpec
 } from '@/schemas/nodeDefSchema'
 import { useApp } from '@/scripts/appInstance'
+import { provideLitegraphService } from '@/core/graph/litegraphServiceAccess'
 import {
   clipspace,
   copyToClipspace,
@@ -1027,3 +1028,5 @@ export const useLitegraphService = () => {
     updatePreviews
   }
 }
+
+provideLitegraphService(useLitegraphService)
