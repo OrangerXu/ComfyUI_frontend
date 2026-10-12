@@ -92,6 +92,7 @@ export async function getOutputsForTask(
     taskCache.set(requestId, loadedTask)
     return [...loadedTask.previewableOutputs]
   } catch (error) {
+    if (latestTaskRequestId !== requestId) return null
     console.warn('Failed to load full outputs, using preview:', error)
     return [...task.previewableOutputs]
   }
