@@ -62,6 +62,11 @@ export type DeploymentPickState =
    * runs on.
    */
   | ({ phase: 'switching'; target: string | null } & DeploymentListing)
+  | {
+      phase: 'switching'
+      target: string | null
+      previousPhase: 'idle' | 'hidden'
+    }
 
 export type DeploymentPickEvent =
   | ({ type: 'loaded' } & DeploymentListing)
@@ -110,6 +115,25 @@ function listingOf(source: DeploymentListing): DeploymentListing {
   }
 }
 
+function startSwitch(
+  state: DeploymentPickState,
+  target: string | null
+): DeploymentPickState {
+  if (state.phase === 'switching') return state
+  if (state.phase === 'ready') {
+    return { phase: 'switching', target, ...listingOf(state) }
+  }
+  return { phase: 'switching', target, previousPhase: state.phase }
+}
+
+function finishSwitch(
+  state: Extract<DeploymentPickState, { phase: 'switching' }>
+): DeploymentPickState {
+  return 'deployments' in state
+    ? { phase: 'ready', ...listingOf(state) }
+    : { phase: state.previousPhase }
+}
+
 export function reduceDeploymentPick(
   state: DeploymentPickState,
   event: DeploymentPickEvent
@@ -126,17 +150,20 @@ export function reduceDeploymentPick(
       }
       return { phase: 'ready', ...listingOf(event) }
     case 'loadRefused':
-      return { phase: 'hidden' }
+      return state.phase === 'switching'
+        ? { phase: 'switching', target: state.target, previousPhase: 'hidden' }
+        : { phase: 'hidden' }
     case 'loadFailed':
-      return 'deployments' in state ? state : { phase: 'hidden' }
+      return state.phase === 'switching' || 'deployments' in state
+        ? state
+        : { phase: 'hidden' }
     case 'switchStarted':
-      if (state.phase !== 'ready') return state
-      return { phase: 'switching', target: event.target, ...listingOf(state) }
+      return startSwitch(state, event.target)
     case 'switchFailed':
-      if (state.phase !== 'switching') return state
-      return { phase: 'ready', ...listingOf(state) }
+      return state.phase === 'switching' ? finishSwitch(state) : state
     case 'defaultChanged':
       if (state.phase !== 'switching') return state
+      if (!('deployments' in state)) return { phase: state.previousPhase }
       return {
         phase: 'ready',
         ...listingOf(state),
